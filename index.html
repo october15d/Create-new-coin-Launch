@@ -3,10 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Creator Coin – All in One</title>
-    <!-- Tailwind CSS CDN -->
+    <title>Creator Coin – Premium Digital Asset</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Custom Tailwind config overrides -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -19,76 +17,116 @@
         .input-dark:focus { border-color: #FFD700; box-shadow: 0 0 0 3px rgba(255,215,0,0.1); }
         .gold-spinner { border: 3px solid #1A1A2E; border-top: 3px solid #FFD700; border-radius: 50%; width: 24px; height: 24px; animation: spin 0.8s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        /* Custom scrollbar */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #0D0D1A; }
         ::-webkit-scrollbar-thumb { background: #1A1A2E; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #FFD700; }
     </style>
-    <!-- React & ReactDOM CDN -->
     <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.development.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.development.js"></script>
-    <!-- React Router CDN -->
     <script src="https://cdn.jsdelivr.net/npm/react-router-dom@6.20.0/umd/react-router-dom.development.js"></script>
-    <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Lucide Icons (simplified) -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Babel for JSX -->
     <script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
 </head>
 <body>
     <div id="root"></div>
     <script type="text/babel">
-        // Supabase initialization (replace with your own keys)
-        const supabaseUrl = https://sibjlexvhdffethqkftp.supabase.co
-        const supabaseAnonKey = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNpYmpsZXh2aGRmZmV0aHFrZnRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MjUyMDEsImV4cCI6MjA5NzEwMTIwMX0.FAfBxA74Ln8-40dXKTBEkSByEc419N9TknjPRZLJZbg
-        const supabase = supabase.createClient(supabaseUrl, supabaseAnonKey);
+        // ---------- YOUR SUPABASE CREDENTIALS (inserted) ----------
+        const SUPABASE_URL = 'https://sibjlexvhdffethqkftp.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNpYmpsZXh2aGRmZmV0aHFrZnRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MjUyMDEsImV4cCI6MjA5NzEwMTIwMX0.FAfBxA74Ln8-40dXKTBEkSByEc419N9TknjPRZLJZbg';
+        const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // Helper functions
         function formatUSD(val) { return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val); }
         function formatINR(val) { return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val); }
+        function getGreeting() { const h = new Date().getHours(); if (h<12) return 'Good Morning'; if (h<18) return 'Good Afternoon'; return 'Good Evening'; }
 
-        // Fake hook for demonstration – real project would use useState/useEffect
         const { useState, useEffect, createContext, useContext } = React;
         const { BrowserRouter, Routes, Route, Link, useNavigate, useLocation, Navigate } = ReactRouterDOM;
 
-        // Auth Context
+        // ---------- Auth Context (non‑blocking) ----------
         const AuthContext = createContext(null);
         function AuthProvider({ children }) {
             const [user, setUser] = useState(null);
             const [profile, setProfile] = useState(null);
-            const [loading, setLoading] = useState(true);
+            const [loading, setLoading] = useState(false);
+            const [initialized, setInitialized] = useState(false);
+
             useEffect(() => {
-                supabase.auth.getSession().then(({ data: { session } }) => {
+                const checkSession = async () => {
+                    setLoading(true);
+                    const { data: { session } } = await supabase.auth.getSession();
                     if (session?.user) {
                         setUser(session.user);
-                        fetchProfile(session.user.id);
+                        const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+                        if (data) setProfile(data);
                     }
                     setLoading(false);
-                });
-                const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+                    setInitialized(true);
+                };
+                checkSession();
+
+                const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
                     if (session?.user) {
                         setUser(session.user);
-                        fetchProfile(session.user.id);
+                        const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+                        if (data) setProfile(data);
                     } else {
                         setUser(null);
                         setProfile(null);
                     }
+                    setLoading(false);
                 });
                 return () => listener?.subscription.unsubscribe();
             }, []);
-            async function fetchProfile(userId) {
-                const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
-                if (data) setProfile(data);
-            }
-            async function signOut() { await supabase.auth.signOut(); setUser(null); setProfile(null); }
-            const value = { user, profile, loading, signOut, isAdmin: profile?.role === 'Admin' };
+
+            const login = async (email, password) => {
+                setLoading(true);
+                const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+                if (error) throw error;
+                const { data: profileData } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
+                setProfile(profileData);
+                setUser(data.user);
+                setLoading(false);
+                return data;
+            };
+
+            const signup = async (username, email, password, referralCode) => {
+                setLoading(true);
+                const { data, error } = await supabase.auth.signUp({
+                    email, password,
+                    options: { data: { username } }
+                });
+                if (error) throw error;
+                setTimeout(async () => {
+                    const { data: profileData } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
+                    setProfile(profileData);
+                    setUser(data.user);
+                    setLoading(false);
+                }, 1500);
+                return data;
+            };
+
+            const logout = async () => {
+                await supabase.auth.signOut();
+                setUser(null);
+                setProfile(null);
+            };
+
+            const refreshProfile = async () => {
+                if (user) {
+                    const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+                    if (data) setProfile(data);
+                }
+            };
+
+            const value = { user, profile, loading, initialized, login, signup, logout, refreshProfile, isAdmin: profile?.role === 'Admin' || profile?.role === 'Super Admin' };
             return React.createElement(AuthContext.Provider, { value }, children);
         }
         function useAuth() { return useContext(AuthContext); }
 
-        // Theme Context (simple)
+        // Theme context (light/dark toggle)
         const ThemeContext = createContext();
         function ThemeProvider({ children }) {
             const [theme, setTheme] = useState('light');
@@ -100,12 +138,12 @@
             return React.createElement(ThemeContext.Provider, { value: { theme, toggleTheme } }, children);
         }
 
-        // Simple components
+        // ---------- Components ----------
         const Navbar = () => {
-            const { user, profile, signOut, isAdmin } = useAuth();
+            const { profile, logout, isAdmin } = useAuth();
             const { toggleTheme, theme } = useContext(ThemeContext);
             const location = useLocation();
-            if (!user) return null;
+            if (!profile) return null;
             return React.createElement('nav', { className: 'fixed top-0 left-0 right-0 z-50 bg-[#05050F]/95 backdrop-blur-lg border-b border-[#1A1A2E] px-4 h-16 flex items-center justify-between' },
                 React.createElement(Link, { to: '/dashboard', className: 'flex items-center gap-2' },
                     React.createElement('div', { className: 'w-9 h-9 rounded-full bg-gradient-to-br from-[#FFD700] to-[#C8960C] flex items-center justify-center' }, 'CC'),
@@ -116,10 +154,11 @@
                     React.createElement(Link, { to: '/wallet', className: `px-3 py-2 rounded-lg text-sm ${location.pathname === '/wallet' ? 'text-[#FFD700] bg-[#FFD700]/10' : 'text-[#A0A0B0]'}` }, 'Wallet'),
                     React.createElement(Link, { to: '/buy', className: `px-3 py-2 rounded-lg text-sm ${location.pathname === '/buy' ? 'text-[#FFD700] bg-[#FFD700]/10' : 'text-[#A0A0B0]'}` }, 'Buy'),
                     React.createElement('button', { onClick: toggleTheme, className: 'p-2 rounded-lg hover:bg-[#1A1A2E]/50' }, theme === 'light' ? '🌙' : '☀️'),
-                    React.createElement('button', { onClick: signOut, className: 'text-red-400 text-sm' }, 'Logout')
+                    React.createElement('button', { onClick: logout, className: 'text-red-400 text-sm' }, 'Logout')
                 )
             );
         };
+
         const MobileBottomNav = () => {
             const location = useLocation();
             const tabs = [
@@ -137,144 +176,155 @@
             );
         };
 
-        // Pages (simplified but functional)
+        // ---------- Pages ----------
         const Landing = () => {
             const navigate = useNavigate();
-            return React.createElement('div', { className: 'min-h-screen bg-[#05050F] flex flex-col items-center justify-center px-4 text-center' },
-                React.createElement('h1', { className: 'text-5xl font-bold mb-4' }, 'Creator ', React.createElement('span', { className: 'text-[#FFD700]' }, 'Coin')),
-                React.createElement('p', { className: 'text-[#A0A0B0] mb-8' }, 'The Premium Digital Asset for Creators'),
-                React.createElement('div', { className: 'flex gap-4' },
-                    React.createElement('button', { onClick: () => navigate('/login'), className: 'btn-gold px-6 py-2 rounded-xl' }, 'Login'),
-                    React.createElement('button', { onClick: () => navigate('/signup'), className: 'border border-[#FFD700] text-[#FFD700] px-6 py-2 rounded-xl' }, 'Sign Up')
+            return React.createElement('div', { className: 'min-h-screen bg-gradient-to-b from-[#05050F] to-[#0D0D1A] flex flex-col items-center justify-center px-4 text-center' },
+                React.createElement('div', { className: 'w-20 h-20 rounded-full bg-gradient-to-br from-[#FFD700] to-[#C8960C] flex items-center justify-center mx-auto mb-6' }, React.createElement('span', { className: 'text-3xl font-bold text-black' }, 'CC')),
+                React.createElement('h1, { className: 'text-5xl sm:text-6xl font-extrabold mb-4' }, 'Creator ', React.createElement('span', { className: 'text-[#FFD700]' }, 'Coin')),
+                React.createElement('p', { className: 'text-[#A0A0B0] text-lg mb-8 max-w-md' }, 'The premium digital asset for the creator economy. Buy, send, stake, and grow your wealth.'),
+                React.createElement('div', { className: 'flex flex-col sm:flex-row gap-4' },
+                    React.createElement('button', { onClick: () => navigate('/login'), className: 'btn-gold px-8 py-3 rounded-xl text-lg font-semibold' }, 'Get Started'),
+                    React.createElement('button', { onClick: () => navigate('/signup'), className: 'border-2 border-[#FFD700] text-[#FFD700] px-8 py-3 rounded-xl text-lg font-semibold hover:bg-[#FFD700]/10' }, 'Create Account')
+                ),
+                React.createElement('div', { className: 'mt-16 grid grid-cols-3 gap-8 text-center' },
+                    React.createElement('div', null, React.createElement('div', { className: 'text-2xl font-bold text-[#FFD700]' }, '12K+'), React.createElement('div', { className: 'text-sm text-[#A0A0B0]' }, 'Users')),
+                    React.createElement('div', null, React.createElement('div', { className: 'text-2xl font-bold text-[#FFD700]' }, '₹2.4Cr'), React.createElement('div', { className: 'text-sm text-[#A0A0B0]' }, 'Traded')),
+                    React.createElement('div', null, React.createElement('div', { className: 'text-2xl font-bold text-[#FFD700]' }, '99.9%'), React.createElement('div', { className: 'text-sm text-[#A0A0B0]' }, 'Uptime'))
                 )
             );
         };
+
         const Login = () => {
             const [email, setEmail] = useState('');
             const [password, setPassword] = useState('');
             const [loading, setLoading] = useState(false);
+            const { login } = useAuth();
             const navigate = useNavigate();
-            const handleLogin = async (e) => {
+            const handleSubmit = async (e) => {
                 e.preventDefault();
                 setLoading(true);
-                const { error } = await supabase.auth.signInWithPassword({ email, password });
-                if (error) alert(error.message);
-                else navigate('/dashboard');
+                try {
+                    await login(email, password);
+                    navigate('/dashboard');
+                } catch (err) { alert(err.message); }
                 setLoading(false);
             };
             return React.createElement('div', { className: 'min-h-screen bg-[#05050F] flex items-center justify-center px-4' },
-                React.createElement('form', { onSubmit: handleLogin, className: 'card-dark p-6 w-full max-w-md' },
-                    React.createElement('h2', { className: 'text-2xl font-bold mb-4 text-center' }, 'Login'),
+                React.createElement('form', { onSubmit: handleSubmit, className: 'card-dark p-6 w-full max-w-md' },
+                    React.createElement('h2', { className: 'text-2xl font-bold mb-4 text-center' }, 'Welcome Back'),
                     React.createElement('input', { type: 'email', placeholder: 'Email', value: email, onChange: e => setEmail(e.target.value), className: 'input-dark mb-3', required: true }),
                     React.createElement('input', { type: 'password', placeholder: 'Password', value: password, onChange: e => setPassword(e.target.value), className: 'input-dark mb-4', required: true }),
-                    React.createElement('button', { type: 'submit', disabled: loading, className: 'btn-gold w-full py-2 rounded-xl' }, loading ? '...' : 'Sign In'),
+                    React.createElement('button', { type: 'submit', disabled: loading, className: 'btn-gold w-full py-2 rounded-xl' }, loading ? React.createElement('div', { className: 'gold-spinner mx-auto' }) : 'Sign In'),
                     React.createElement('p', { className: 'text-center text-sm mt-4' }, "Don't have an account? ", React.createElement(Link, { to: '/signup', className: 'text-[#FFD700]' }, 'Sign up'))
                 )
             );
         };
+
         const Signup = () => {
+            const [username, setUsername] = useState('');
             const [email, setEmail] = useState('');
             const [password, setPassword] = useState('');
-            const [username, setUsername] = useState('');
+            const [referral, setReferral] = useState('');
             const [loading, setLoading] = useState(false);
+            const { signup } = useAuth();
             const navigate = useNavigate();
-            const handleSignup = async (e) => {
+            const handleSubmit = async (e) => {
                 e.preventDefault();
                 setLoading(true);
-                const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { username } } });
-                if (error) alert(error.message);
-                else {
-                    // Create profile (simplified, in real project you'd use edge function)
-                    const walletId = 'CCW-' + Math.random().toString(36).substring(2,8).toUpperCase();
-                    const refCode = 'CCR-' + Math.random().toString(36).substring(2,8).toUpperCase();
-                    await supabase.from('profiles').insert({ id: data.user.id, username, email, wallet_id: walletId, referral_code: refCode, ccr_balance: 400 });
-                    alert('Account created! 400 CCR bonus.');
+                try {
+                    await signup(username, email, password, referral);
                     navigate('/dashboard');
-                }
+                } catch (err) { alert(err.message); }
                 setLoading(false);
             };
-            return React.createElement('div', { className: 'min-h-screen bg-[#05050F] flex items-center justify-center px-4' },
-                React.createElement('form', { onSubmit: handleSignup, className: 'card-dark p-6 w-full max-w-md' },
-                    React.createElement('h2', { className: 'text-2xl font-bold mb-4 text-center' }, 'Sign Up'),
+            return React.createElement('div', { className: 'min-h-screen bg-[#05050F] flex items-center justify-center px-4 py-8' },
+                React.createElement('form', { onSubmit: handleSubmit, className: 'card-dark p-6 w-full max-w-md' },
+                    React.createElement('h2', { className: 'text-2xl font-bold mb-4 text-center' }, 'Create Account'),
                     React.createElement('input', { type: 'text', placeholder: 'Username', value: username, onChange: e => setUsername(e.target.value), className: 'input-dark mb-3', required: true }),
                     React.createElement('input', { type: 'email', placeholder: 'Email', value: email, onChange: e => setEmail(e.target.value), className: 'input-dark mb-3', required: true }),
-                    React.createElement('input', { type: 'password', placeholder: 'Password', value: password, onChange: e => setPassword(e.target.value), className: 'input-dark mb-4', required: true }),
-                    React.createElement('button', { type: 'submit', disabled: loading, className: 'btn-gold w-full py-2 rounded-xl' }, loading ? '...' : 'Create Account'),
+                    React.createElement('input', { type: 'password', placeholder: 'Password (min 6)', value: password, onChange: e => setPassword(e.target.value), className: 'input-dark mb-3', required: true, minLength: 6 }),
+                    React.createElement('input', { type: 'text', placeholder: 'Referral Code (optional)', value: referral, onChange: e => setReferral(e.target.value), className: 'input-dark mb-4' }),
+                    React.createElement('div', { className: 'bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-2 mb-4 text-xs text-[#FFD700] text-center' }, '🎁 You will receive 400 CCR welcome bonus!'),
+                    React.createElement('button', { type: 'submit', disabled: loading, className: 'btn-gold w-full py-2 rounded-xl' }, loading ? React.createElement('div', { className: 'gold-spinner mx-auto' }) : 'Sign Up'),
                     React.createElement('p', { className: 'text-center text-sm mt-4' }, 'Already have an account? ', React.createElement(Link, { to: '/login', className: 'text-[#FFD700]' }, 'Login'))
                 )
             );
         };
+
+        const PrivateRoute = ({ children }) => {
+            const { user, loading, initialized } = useAuth();
+            if (!initialized || loading) return React.createElement('div', { className: 'min-h-screen bg-[#05050F] flex items-center justify-center' }, React.createElement('div', { className: 'gold-spinner' }));
+            return user ? children : React.createElement(Navigate, { to: '/login' });
+        };
+
         const Dashboard = () => {
-            const { profile } = useAuth();
+            const { profile, refreshProfile } = useAuth();
             const [balance, setBalance] = useState(profile?.ccr_balance || 0);
             useEffect(() => { if (profile) setBalance(profile.ccr_balance); }, [profile]);
             return React.createElement('div', { className: 'min-h-screen bg-[#05050F] pt-20 px-4 pb-24' },
                 React.createElement('div', { className: 'max-w-2xl mx-auto' },
-                    React.createElement('h1', { className: 'text-2xl font-bold mb-6' }, 'Dashboard, ', React.createElement('span', { className: 'text-[#FFD700]' }, profile?.username || 'User')),
-                    React.createElement('div', { className: 'card-gold-border p-6 gold-glow text-center mb-6' },
+                    React.createElement('h1, { className: 'text-2xl font-bold mb-6' }, getGreeting(), ', ', React.createElement('span', { className: 'text-[#FFD700]' }, profile?.username || 'User')),
+                    React.createElement('div', { className: 'card-dark p-6 gold-glow text-center mb-6' },
                         React.createElement('p', { className: 'text-sm text-[#A0A0B0]' }, 'CCR Balance'),
                         React.createElement('p', { className: 'text-4xl font-bold text-[#FFD700]' }, balance.toLocaleString(), ' CCR')
                     ),
-                    React.createElement('div', { className: 'grid grid-cols-2 gap-3' },
+                    React.createElement('div', { className: 'grid grid-cols-2 gap-3 mb-6' },
                         React.createElement(Link, { to: '/send', className: 'btn-gold py-3 text-center rounded-xl' }, 'Send'),
                         React.createElement(Link, { to: '/receive', className: 'btn-gold py-3 text-center rounded-xl' }, 'Receive'),
                         React.createElement(Link, { to: '/buy', className: 'btn-gold py-3 text-center rounded-xl' }, 'Buy'),
                         React.createElement(Link, { to: '/staking', className: 'btn-gold py-3 text-center rounded-xl' }, 'Stake')
+                    ),
+                    React.createElement('div', { className: 'card-dark p-4' },
+                        React.createElement('p', { className: 'text-sm font-semibold' }, 'Trust Score: ', profile?.trust_score, '/100'),
+                        React.createElement('div', { className: 'w-full bg-[#1A1A2E] rounded-full h-2 mt-1' },
+                            React.createElement('div', { className: 'bg-[#FFD700] h-2 rounded-full', style: { width: `${profile?.trust_score || 0}%` } })
+                        )
                     )
                 )
             );
         };
-        const Wallet = () => {
-            const { profile } = useAuth();
-            return React.createElement('div', { className: 'min-h-screen bg-[#05050F] pt-20 px-4 pb-24' },
-                React.createElement('div', { className: 'max-w-2xl mx-auto' },
-                    React.createElement('h1, { className: 'text-2xl font-bold mb-6' }, 'Wallet'),
-                    React.createElement('div', { className: 'card-dark p-4 mb-4' },
-                        React.createElement('p', { className: 'text-sm text-[#A0A0B0]' }, 'Wallet ID'),
-                        React.createElement('p', { className: 'font-mono text-lg' }, profile?.wallet_id || 'CCW-XXXXXX')
-                    ),
-                    React.createElement('p', { className: 'text-center text-[#A0A0B0]' }, 'Transaction history will appear here')
+
+        const Wallet = () => { const { profile } = useAuth(); return React.createElement('div', { className: 'min-h-screen bg-[#05050F] pt-20 px-4 pb-24' }, React.createElement('div', { className: 'max-w-2xl mx-auto' }, React.createElement('div', { className: 'card-dark p-4' }, React.createElement('p', { className: 'font-mono' }, 'Wallet ID: ', profile?.wallet_id)))); };
+        const Send = () => React.createElement('div', { className: 'min-h-screen bg-[#05050F] pt-20 px-4' }, React.createElement('div', { className: 'card-dark p-6 max-w-md mx-auto' }, React.createElement('h2', { className: 'text-xl font-bold' }, 'Send CCR (Coming Soon)')));
+        const Receive = () => React.createElement('div', { className: 'min-h-screen bg-[#05050F] pt-20 px-4' }, React.createElement('div', { className: 'card-dark p-6 max-w-md mx-auto' }, React.createElement('h2', { className: 'text-xl font-bold' }, 'Receive')));
+        const Buy = () => React.createElement('div', { className: 'min-h-screen bg-[#05050F] pt-20 px-4' }, React.createElement('div', { className: 'card-dark p-6 max-w-md mx-auto' }, React.createElement('h2', { className: 'text-xl font-bold' }, 'Buy CCR')));
+        const Referrals = () => { const { profile } = useAuth(); return React.createElement('div', { className: 'min-h-screen bg-[#05050F] pt-20 px-4' }, React.createElement('div', { className: 'card-dark p-6 max-w-md mx-auto' }, React.createElement('p', { className: 'font-mono' }, 'Referral Code: ', profile?.referral_code))); };
+        const Profile = () => { const { profile } = useAuth(); return React.createElement('div', { className: 'min-h-screen bg-[#05050F] pt-20 px-4' }, React.createElement('div', { className: 'card-dark p-6 max-w-md mx-auto' }, React.createElement('p', { className: 'mb-2' }, 'Username: ', profile?.username), React.createElement('p', { className: 'mb-2' }, 'Email: ', profile?.email), React.createElement('p', { className: 'mb-2' }, 'Badge: ', profile?.badge))); };
+        const Staking = () => React.createElement('div', { className: 'min-h-screen bg-[#05050F] pt-20 px-4' }, React.createElement('div', { className: 'card-dark p-6 max-w-md mx-auto' }, React.createElement('h2', { className: 'text-xl font-bold' }, 'Staking')));
+        const Security = () => React.createElement('div', { className: 'min-h-screen bg-[#05050F] pt-20 px-4' }, React.createElement('div', { className: 'card-dark p-6 max-w-md mx-auto' }, React.createElement('h2', { className: 'text-xl font-bold' }, 'Security')));
+        const Withdraw = () => React.createElement('div', { className: 'min-h-screen bg-[#05050F] pt-20 px-4' }, React.createElement('div', { className: 'card-gold-border p-6 max-w-md mx-auto text-center gold-glow' }, React.createElement('h2', { className: 'text-2xl font-bold mb-2' }, 'Coming Soon'), React.createElement('p', { className: 'text-[#A0A0B0]' }, 'Withdrawal feature is under development.')));
+        const Admin = () => React.createElement('div', { className: 'min-h-screen bg-[#05050F] pt-20 px-4' }, React.createElement('div', { className: 'card-dark p-6 max-w-md mx-auto' }, React.createElement('h2', { className: 'text-xl font-bold' }, 'Admin Panel')));
+
+        // ---------- Main App ----------
+        const App = () => {
+            return React.createElement(ThemeProvider, null,
+                React.createElement(AuthProvider, null,
+                    React.createElement(BrowserRouter, null,
+                        React.createElement(Navbar, null),
+                        React.createElement(Routes, null,
+                            React.createElement(Route, { path: '/', element: React.createElement(Landing, null) }),
+                            React.createElement(Route, { path: '/login', element: React.createElement(Login, null) }),
+                            React.createElement(Route, { path: '/signup', element: React.createElement(Signup, null) }),
+                            React.createElement(Route, { path: '/dashboard', element: React.createElement(PrivateRoute, null, React.createElement(Dashboard, null)) }),
+                            React.createElement(Route, { path: '/wallet', element: React.createElement(PrivateRoute, null, React.createElement(Wallet, null)) }),
+                            React.createElement(Route, { path: '/send', element: React.createElement(PrivateRoute, null, React.createElement(Send, null)) }),
+                            React.createElement(Route, { path: '/receive', element: React.createElement(PrivateRoute, null, React.createElement(Receive, null)) }),
+                            React.createElement(Route, { path: '/buy', element: React.createElement(PrivateRoute, null, React.createElement(Buy, null)) }),
+                            React.createElement(Route, { path: '/referrals', element: React.createElement(PrivateRoute, null, React.createElement(Referrals, null)) }),
+                            React.createElement(Route, { path: '/profile', element: React.createElement(PrivateRoute, null, React.createElement(Profile, null)) }),
+                            React.createElement(Route, { path: '/staking', element: React.createElement(PrivateRoute, null, React.createElement(Staking, null)) }),
+                            React.createElement(Route, { path: '/security', element: React.createElement(PrivateRoute, null, React.createElement(Security, null)) }),
+                            React.createElement(Route, { path: '/withdraw', element: React.createElement(PrivateRoute, null, React.createElement(Withdraw, null)) }),
+                            React.createElement(Route, { path: '/admin/*', element: React.createElement(PrivateRoute, null, React.createElement(Admin, null)) })
+                        ),
+                        React.createElement(MobileBottomNav, null)
+                    )
                 )
             );
         };
-        const Send = () => { return React.createElement('div', { className: 'min-h-screen bg-[#05050F] pt-20 px-4' }, React.createElement('div', { className: 'card-dark p-6 max-w-md mx-auto' }, React.createElement('h2', { className: 'text-xl font-bold mb-4' }, 'Send CCR'), React.createElement('p', { className: 'text-[#A0A0B0]' }, 'Form would go here'))); };
-        const Receive = () => { return React.createElement('div', { className: 'min-h-screen bg-[#05050F] pt-20 px-4' }, React.createElement('div', { className: 'card-dark p-6 max-w-md mx-auto text-center' }, React.createElement('h2', { className: 'text-xl font-bold mb-2' }, 'Receive'), React.createElement('p', { className: 'font-mono text-lg' }, 'Your Wallet ID: CCW-XXXXXX'))); };
-        const Buy = () => { return React.createElement('div', { className: 'min-h-screen bg-[#05050F] pt-20 px-4' }, React.createElement('div', { className: 'card-dark p-6 max-w-md mx-auto' }, React.createElement('h2', { className: 'text-xl font-bold mb-4' }, 'Buy CCR'), React.createElement('p', { className: 'text-[#A0A0B0]' }, 'Payment methods: Crypto (MetaMask) / Fiat proof upload'))); };
-        const Referrals = () => { return React.createElement('div', { className: 'min-h-screen bg-[#05050F] pt-20 px-4' }, React.createElement('div', { className: 'card-dark p-6 max-w-md mx-auto' }, React.createElement('h2', { className: 'text-xl font-bold mb-4' }, 'Referrals'), React.createElement('p', { className: 'text-[#A0A0B0]' }, 'Your referral code: CCR-XXXXXX'))); };
-        const Profile = () => { const { profile } = useAuth(); return React.createElement('div', { className: 'min-h-screen bg-[#05050F] pt-20 px-4' }, React.createElement('div', { className: 'card-dark p-6 max-w-md mx-auto' }, React.createElement('h2', { className: 'text-xl font-bold mb-4' }, 'Profile'), React.createElement('p', { className: 'mb-2' }, 'Username: ', profile?.username), React.createElement('p', { className: 'mb-2' }, 'Email: ', profile?.email), React.createElement('p', { className: 'mb-2' }, 'Badge: ', profile?.badge || 'Standard'))); };
-        const Staking = () => { return React.createElement('div', { className: 'min-h-screen bg-[#05050F] pt-20 px-4' }, React.createElement('div', { className: 'card-dark p-6 max-w-md mx-auto' }, React.createElement('h2', { className: 'text-xl font-bold mb-4' }, 'Staking'), React.createElement('p', { className: 'text-[#A0A0B0]' }, 'Stake your CCR to earn rewards.'))); };
-        const Security = () => { return React.createElement('div', { className: 'min-h-screen bg-[#05050F] pt-20 px-4' }, React.createElement('div', { className: 'card-dark p-6 max-w-md mx-auto' }, React.createElement('h2', { className: 'text-xl font-bold mb-4' }, 'Security'), React.createElement('p', { className: 'text-[#A0A0B0]' }, '2FA and anti-phishing code settings'))); };
-        const Admin = () => { return React.createElement('div', { className: 'min-h-screen bg-[#05050F] pt-20 px-4' }, React.createElement('div', { className: 'card-dark p-6 max-w-md mx-auto' }, React.createElement('h2', { className: 'text-xl font-bold mb-4' }, 'Admin Panel'), React.createElement('p', { className: 'text-[#A0A0B0]' }, 'Manage users, orders, economy'))); };
-        const Withdraw = () => React.createElement('div', { className: 'min-h-screen bg-[#05050F] pt-20 px-4' }, React.createElement('div', { className: 'card-gold-border p-6 max-w-md mx-auto text-center gold-glow' }, React.createElement('h2', { className: 'text-2xl font-bold mb-2' }, 'Coming Soon'), React.createElement('p', { className: 'text-[#A0A0B0]' }, 'Withdrawal feature is under development.')));
 
-        // Main App with Router
-        const App = () => {
-            const { user, loading } = useAuth();
-            if (loading) return React.createElement('div', { className: 'min-h-screen flex items-center justify-center' }, React.createElement('div', { className: 'gold-spinner' }));
-            return React.createElement(BrowserRouter, null,
-                React.createElement(Navbar, null),
-                React.createElement(Routes, null,
-                    React.createElement(Route, { path: '/', element: user ? React.createElement(Navigate, { to: '/dashboard' }) : React.createElement(Landing, null) }),
-                    React.createElement(Route, { path: '/login', element: user ? React.createElement(Navigate, { to: '/dashboard' }) : React.createElement(Login, null) }),
-                    React.createElement(Route, { path: '/signup', element: user ? React.createElement(Navigate, { to: '/dashboard' }) : React.createElement(Signup, null) }),
-                    React.createElement(Route, { path: '/dashboard', element: user ? React.createElement(Dashboard, null) : React.createElement(Navigate, { to: '/login' }) }),
-                    React.createElement(Route, { path: '/wallet', element: user ? React.createElement(Wallet, null) : React.createElement(Navigate, { to: '/login' }) }),
-                    React.createElement(Route, { path: '/send', element: user ? React.createElement(Send, null) : React.createElement(Navigate, { to: '/login' }) }),
-                    React.createElement(Route, { path: '/receive', element: user ? React.createElement(Receive, null) : React.createElement(Navigate, { to: '/login' }) }),
-                    React.createElement(Route, { path: '/buy', element: user ? React.createElement(Buy, null) : React.createElement(Navigate, { to: '/login' }) }),
-                    React.createElement(Route, { path: '/referrals', element: user ? React.createElement(Referrals, null) : React.createElement(Navigate, { to: '/login' }) }),
-                    React.createElement(Route, { path: '/profile', element: user ? React.createElement(Profile, null) : React.createElement(Navigate, { to: '/login' }) }),
-                    React.createElement(Route, { path: '/staking', element: user ? React.createElement(Staking, null) : React.createElement(Navigate, { to: '/login' }) }),
-                    React.createElement(Route, { path: '/security', element: user ? React.createElement(Security, null) : React.createElement(Navigate, { to: '/login' }) }),
-                    React.createElement(Route, { path: '/withdraw', element: user ? React.createElement(Withdraw, null) : React.createElement(Navigate, { to: '/login' }) }),
-                    React.createElement(Route, { path: '/admin/*', element: user && useAuth().isAdmin ? React.createElement(Admin, null) : React.createElement(Navigate, { to: '/dashboard' }) })
-                ),
-                user && React.createElement(MobileBottomNav, null)
-            );
-        };
-
-        const Root = () => React.createElement(ThemeProvider, null, React.createElement(AuthProvider, null, React.createElement(App, null)));
-        ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(Root, null));
+        ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App, null));
     </script>
 </body>
-  </html>
+</html>
